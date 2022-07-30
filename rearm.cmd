@@ -36,7 +36,7 @@ rmdir /q /s %1
 exit /b
 
 :main
-set "_version=1.0"
+set "_version=1.1"
 set "_target=%~d0"
 if not exist "%_target%\Windows\system32\config\SYSTEM" echo Can't find Windows installation on %_target% & exit /b 1
 
@@ -47,21 +47,55 @@ echo ======================================================================
 echo.
 echo Cleaning licensing files on %_target%...
 
+:: ========== Registry ==========
+::WPA + ClipSVC
 reg load HKLM\clean_temp "%_target%\Windows\system32\config\SYSTEM"
 reg query "HKLM\clean_temp\ControlSet001\Control\{7746D80F-97E0-4E26-9543-26B41FC22F79}" >NUL 2>&1
 if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\ControlSet001\Control\{7746D80F-97E0-4E26-9543-26B41FC22F79}" /f
 for /f %%i in ('reg query HKLM\clean_temp\WPA ^| find "8DEC0AF1-0341-4b93-85CD-72606C2DF94C"') do reg delete "%%i" /f
 reg unload HKLM\clean_temp
 
+::.DEFAULT IdentityCRL
+reg load HKLM\clean_temp "%_target%\Windows\System32\config\DEFAULT"
+reg query "HKLM\clean_temp\Software\Microsoft\IdentityCRL" >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Software\Microsoft\IdentityCRL" /f
+reg unload HKLM\clean_temp
+
+::S-1-5-19 IdentityCRL
+reg load HKLM\clean_temp "%_target%\Windows\ServiceProfiles\LocalService\NTUSER.DAT"
+reg query "HKLM\clean_temp\Software\Microsoft\IdentityCRL" >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Software\Microsoft\IdentityCRL" /f
+reg unload HKLM\clean_temp
+
+::S-1-5-20 IdentityCRL
+reg load HKLM\clean_temp "%_target%\Windows\ServiceProfiles\NetworkService\NTUSER.DAT"
+reg query "HKLM\clean_temp\Software\Microsoft\IdentityCRL" >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Software\Microsoft\IdentityCRL" /f
+reg unload HKLM\clean_temp
+
+:: ========== Files ==========
+::ClipSVC
 call :remove_file "%_target%\ProgramData\Microsoft\Windows\ClipSVC\tokens.dat"
+
+::Windows 10/11 Insider
 call :remove_directory "%_target%\Windows\System32\spp\store_test\2.0\cache"
 call :remove_file "%_target%\Windows\System32\spp\store_test\2.0\data.dat"
 call :remove_file "%_target%\Windows\System32\spp\store_test\2.0\tokens.dat"
+
+::Windows 8.1/10/11
 call :remove_directory "%_target%\Windows\System32\spp\store\2.0\cache"
 call :remove_file "%_target%\Windows\System32\spp\store\2.0\data.dat"
 call :remove_file "%_target%\Windows\System32\spp\store\2.0\tokens.dat"
+
+::Windows 8
 call :remove_directory "%_target%\Windows\System32\spp\store\cache"
 call :remove_file "%_target%\Windows\System32\spp\store\data.dat"
 call :remove_file "%_target%\Windows\System32\spp\store\tokens.dat"
+
+::Windows 7
 call :remove_file "%_target%\Windows\ServiceProfiles\NetworkService\AppData\Roaming\Microsoft\SoftwareProtectionPlatform\tokens.dat"
 call :remove_directory "%_target%\Windows\ServiceProfiles\NetworkService\AppData\Roaming\Microsoft\SoftwareProtectionPlatform\cache"
+
+::OSPPSVC
+call :remove_file "%_target%\ProgramData\Microsoft\OfficeSoftwareProtectionPlatform\tokens.dat"
+call :remove_directory "%_target%\ProgramData\Microsoft\OfficeSoftwareProtectionPlatform\Cache"
