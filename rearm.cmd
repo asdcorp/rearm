@@ -1,7 +1,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::                                                                           ::
 :: rearm (Rearm Every Activation-Related Mechanism)                          ::
-:: Copyright (C) 2022 Gamers Against Weed                                    ::
+:: Copyright (C) 2024 asdcorp                                                ::
 ::                                                                           ::
 :: This program is free software: you can redistribute it and/or modify      ::
 :: it under the terms of the GNU General Public License as published by      ::
@@ -36,13 +36,13 @@ rmdir /q /s %1
 exit /b
 
 :main
-set "_version=1.1"
+set "_version=1.2"
 set "_target=%~d0"
 if not exist "%_target%\Windows\system32\config\SYSTEM" echo Can't find Windows installation on %_target% & exit /b 1
 
 echo ======================================================================
 echo rearm (Rearm Every Activation-Related Mechanism) %_version%
-echo https://github.com/Gamers-Against-Weed/rearm
+echo https://github.com/asdcorp/rearm
 echo ======================================================================
 echo.
 echo Cleaning licensing files on %_target%...
@@ -52,6 +52,8 @@ echo Cleaning licensing files on %_target%...
 reg load HKLM\clean_temp "%_target%\Windows\system32\config\SYSTEM"
 reg query "HKLM\clean_temp\ControlSet001\Control\{7746D80F-97E0-4E26-9543-26B41FC22F79}" >NUL 2>&1
 if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\ControlSet001\Control\{7746D80F-97E0-4E26-9543-26B41FC22F79}" /f
+reg query "HKLM\clean_temp\ControlSet001\Services\ClipSVC\Parameters" /v SubscriptionList >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\ControlSet001\Services\ClipSVC\Parameters" /v SubscriptionList /f
 for /f %%i in ('reg query HKLM\clean_temp\WPA ^| find "8DEC0AF1-0341-4b93-85CD-72606C2DF94C"') do reg delete "%%i" /f
 reg unload HKLM\clean_temp
 
