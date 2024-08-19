@@ -25,8 +25,7 @@ goto :main
 
 :remove_file
 if not exist %1 exit /b
-attrib -s -h %1
-del /f %1
+del /a /f %1
 exit /b
 
 :remove_directory
@@ -36,7 +35,7 @@ rmdir /q /s %1
 exit /b
 
 :main
-set "_version=1.2"
+set "_version=1.3"
 set "_target=%~d0"
 if not exist "%_target%\Windows\system32\config\SYSTEM" echo Can't find Windows installation on %_target% & exit /b 1
 
@@ -55,6 +54,12 @@ if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\ControlSet001\Control\{7746D80
 reg query "HKLM\clean_temp\ControlSet001\Services\ClipSVC\Parameters" /v SubscriptionList >NUL 2>&1
 if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\ControlSet001\Services\ClipSVC\Parameters" /v SubscriptionList /f
 for /f %%i in ('reg query HKLM\clean_temp\WPA ^| find "8DEC0AF1-0341-4b93-85CD-72606C2DF94C"') do reg delete "%%i" /f
+reg unload HKLM\clean_temp
+
+::OSPPSVC data store
+reg load HKLM\clean_temp "%_target%\Windows\System32\config\SOFTWARE"
+reg query "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" /f
 reg unload HKLM\clean_temp
 
 ::.DEFAULT IdentityCRL
@@ -96,6 +101,7 @@ call :remove_file "%_target%\Windows\System32\spp\store\tokens.dat"
 
 ::Windows 7
 call :remove_file "%_target%\Windows\ServiceProfiles\NetworkService\AppData\Roaming\Microsoft\SoftwareProtectionPlatform\tokens.dat"
+call :remove_file "%_target%\Windows\System32\7B296FB0-376B-497e-B012-9C450E1B7327-*.C7483456-A289-439d-8115-601632D005A0"
 call :remove_directory "%_target%\Windows\ServiceProfiles\NetworkService\AppData\Roaming\Microsoft\SoftwareProtectionPlatform\cache"
 
 ::OSPPSVC
