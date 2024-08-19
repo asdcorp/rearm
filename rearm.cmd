@@ -35,7 +35,7 @@ rmdir /q /s %1
 exit /b
 
 :main
-set "_version=1.3"
+set "_version=1.4"
 set "_target=%~d0"
 if not exist "%_target%\Windows\system32\config\SYSTEM" echo Can't find Windows installation on %_target% & exit /b 1
 
@@ -56,10 +56,18 @@ if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\ControlSet001\Services\ClipSVC
 for /f %%i in ('reg query HKLM\clean_temp\WPA ^| find "8DEC0AF1-0341-4b93-85CD-72606C2DF94C"') do reg delete "%%i" /f
 reg unload HKLM\clean_temp
 
-::OSPPSVC data store
+::SoftwareProtectionPlatform + OSPPSVC data store
 reg load HKLM\clean_temp "%_target%\Windows\System32\config\SOFTWARE"
-reg query "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" /f
+reg query "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v ServiceSessionId >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v ServiceSessionId /f
+reg query "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v LicStatusArray >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v LicStatusArray /f
+reg query "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v PolicyValuesArray >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v PolicyValuesArray /f
+reg query "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v actionlist >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v actionlist /f
+reg query "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" /v Directory >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" /v Directory /f
 reg unload HKLM\clean_temp
 
 ::.DEFAULT IdentityCRL
