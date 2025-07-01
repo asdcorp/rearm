@@ -1,7 +1,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::                                                                           ::
 :: rearm (Rearm Every Activation-Related Mechanism)                          ::
-:: Copyright (C) 2024 asdcorp                                                ::
+:: Copyright (C) 2025 asdcorp                                                ::
 ::                                                                           ::
 :: This program is free software: you can redistribute it and/or modify      ::
 :: it under the terms of the GNU General Public License as published by      ::
@@ -25,17 +25,40 @@ goto :main
 
 :remove_file
 if not exist %1 exit /b
-del /a /f %1
+del /a /f %1 >NUL 2>&1
 exit /b
 
 :remove_directory
 if not exist %1 exit /b
-attrib -s -h %1
-rmdir /q /s %1
+attrib -s -h %1 >NUL 2>&1
+rmdir /q /s %1 >NUL 2>&1
+exit /b
+
+:remove_registry
+reg query %* >NUL 2>&1
+if %ERRORLEVEL% EQU 0 reg delete %* /f >NUL 2>&1
+exit /b
+
+:clear_wpa
+set "_wpa_cleanup_file=%_target%\REARM_WPA_CLEANUP_%RANDOM%.REG"
+set "_wpa_count=0"
+
+(echo Windows Registry Editor Version 5.00 && echo.)>"%_wpa_cleanup_file%"
+
+echo [%time%] Enumerating WPA registry... This may take a while.
+for /f "delims=" %%i in ('reg query HKLM\clean_temp\WPA ^| find "8DEC0AF1-0341-4b93-85CD-72606C2DF94C"') do (
+  set /a _wpa_count+=1
+  echo [-%%i]>>"%_wpa_cleanup_file%"
+)
+
+echo [%time%] Deleting %_wpa_count% WPA registry keys...
+reg import "%_wpa_cleanup_file%" >NUL 2>&1
+
+del "%_wpa_cleanup_file%"
 exit /b
 
 :main
-set "_version=1.4"
+set "_version=2.0"
 set "_target=%~d0"
 if not exist "%_target%\Windows\system32\config\SYSTEM" echo Can't find Windows installation on %_target% & exit /b 1
 
@@ -44,51 +67,46 @@ echo rearm (Rearm Every Activation-Related Mechanism) %_version%
 echo https://github.com/asdcorp/rearm
 echo ======================================================================
 echo.
-echo Cleaning licensing files on %_target%...
+echo [%time%] Proceeding with licensing cleanup on %_target%
 
 :: ========== Registry ==========
 ::WPA + ClipSVC
-reg load HKLM\clean_temp "%_target%\Windows\system32\config\SYSTEM"
-reg query "HKLM\clean_temp\ControlSet001\Control\{7746D80F-97E0-4E26-9543-26B41FC22F79}" >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\ControlSet001\Control\{7746D80F-97E0-4E26-9543-26B41FC22F79}" /f
-reg query "HKLM\clean_temp\ControlSet001\Services\ClipSVC\Parameters" /v SubscriptionList >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\ControlSet001\Services\ClipSVC\Parameters" /v SubscriptionList /f
-for /f %%i in ('reg query HKLM\clean_temp\WPA ^| find "8DEC0AF1-0341-4b93-85CD-72606C2DF94C"') do reg delete "%%i" /f
-reg unload HKLM\clean_temp
+reg load HKLM\clean_temp "%_target%\Windows\system32\config\SYSTEM" >NUL 2>&1 || exit /b 1
+call :clear_wpa
+
+echo [%time%] Cleaning up other licensing registry entries...
+
+call :remove_registry "HKLM\clean_temp\ControlSet001\Control\{7746D80F-97E0-4E26-9543-26B41FC22F79}"
+call :remove_registry "HKLM\clean_temp\ControlSet001\Services\ClipSVC\Parameters" /v SubscriptionList
+reg unload HKLM\clean_temp >NUL 2>&1
 
 ::SoftwareProtectionPlatform + OSPPSVC data store
-reg load HKLM\clean_temp "%_target%\Windows\System32\config\SOFTWARE"
-reg query "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v ServiceSessionId >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v ServiceSessionId /f
-reg query "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v LicStatusArray >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v LicStatusArray /f
-reg query "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v PolicyValuesArray >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v PolicyValuesArray /f
-reg query "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v actionlist >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v actionlist /f
-reg query "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" /v Directory >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" /v Directory /f
-reg unload HKLM\clean_temp
+reg load HKLM\clean_temp "%_target%\Windows\System32\config\SOFTWARE" >NUL 2>&1 || exit /b 1
+call :remove_registry "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v ServiceSessionId
+call :remove_registry "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v LicStatusArray
+call :remove_registry "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v PolicyValuesArray
+call :remove_registry "HKLM\clean_temp\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform" /v actionlist
+call :remove_registry "HKLM\clean_temp\Microsoft\OfficeSoftwareProtectionPlatform\data" /v Directory
+reg unload HKLM\clean_temp >NUL 2>&1
 
 ::.DEFAULT IdentityCRL
-reg load HKLM\clean_temp "%_target%\Windows\System32\config\DEFAULT"
-reg query "HKLM\clean_temp\Software\Microsoft\IdentityCRL" >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Software\Microsoft\IdentityCRL" /f
-reg unload HKLM\clean_temp
+reg load HKLM\clean_temp "%_target%\Windows\System32\config\DEFAULT" >NUL 2>&1
+call :remove_registry "HKLM\clean_temp\Software\Microsoft\IdentityCRL"
+reg unload HKLM\clean_temp >NUL 2>&1
 
 ::S-1-5-19 IdentityCRL
-reg load HKLM\clean_temp "%_target%\Windows\ServiceProfiles\LocalService\NTUSER.DAT"
-reg query "HKLM\clean_temp\Software\Microsoft\IdentityCRL" >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Software\Microsoft\IdentityCRL" /f
-reg unload HKLM\clean_temp
+reg load HKLM\clean_temp "%_target%\Windows\ServiceProfiles\LocalService\NTUSER.DAT" >NUL 2>&1
+call :remove_registry "HKLM\clean_temp\Software\Microsoft\IdentityCRL"
+reg unload HKLM\clean_temp >NUL 2>&1
 
 ::S-1-5-20 IdentityCRL
-reg load HKLM\clean_temp "%_target%\Windows\ServiceProfiles\NetworkService\NTUSER.DAT"
-reg query "HKLM\clean_temp\Software\Microsoft\IdentityCRL" >NUL 2>&1
-if %ERRORLEVEL% EQU 0 reg delete "HKLM\clean_temp\Software\Microsoft\IdentityCRL" /f
-reg unload HKLM\clean_temp
+reg load HKLM\clean_temp "%_target%\Windows\ServiceProfiles\NetworkService\NTUSER.DAT" >NUL 2>&1
+call :remove_registry "HKLM\clean_temp\Software\Microsoft\IdentityCRL"
+reg unload HKLM\clean_temp >NUL 2>&1
 
 :: ========== Files ==========
+echo [%time%] Cleaning up licensing files...
+
 ::ClipSVC
 call :remove_file "%_target%\ProgramData\Microsoft\Windows\ClipSVC\tokens.dat"
 
@@ -115,3 +133,5 @@ call :remove_directory "%_target%\Windows\ServiceProfiles\NetworkService\AppData
 ::OSPPSVC
 call :remove_file "%_target%\ProgramData\Microsoft\OfficeSoftwareProtectionPlatform\tokens.dat"
 call :remove_directory "%_target%\ProgramData\Microsoft\OfficeSoftwareProtectionPlatform\Cache"
+
+echo [%time%] Done.
